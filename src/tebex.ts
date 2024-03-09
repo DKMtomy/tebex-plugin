@@ -37,7 +37,7 @@ interface TebexResponse<T extends Player = Player> {
 }
 
 class Tebex<T extends Player = Player> {
-	protected _tebexSecret: string = '2ee32bb1d3d0afe5a6e5299a7a0f4458e4f949fe';
+	protected _tebexSecret: string = 'your key here';
 	protected _baseURL: string = 'https://plugin.tebex.io';
 	protected duePlayers: Map<string, T>;
 	protected offlineCommands = false;
