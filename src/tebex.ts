@@ -2,16 +2,21 @@ import { setInterval, clearInterval } from 'node:timers';
 import type { Logger, Serenity, Player as IPlayer } from '@serenityjs/serenity';
 import chalk from 'chalk';
 
+// Creds to nobu.sh for the type, i CBA rn, its 4 am and i am bored lmfao
+
+// Define interface for player data
 interface Player {
 	id: number;
 	name: string;
 	uuid: string;
 }
 
+// Define interface for Tebex commands
 export interface TebexDueOnlineCommands<T extends CommandO = CommandO> {
 	commands: T[];
 }
 
+// Define interface for Tebex command conditions
 export interface CommandO {
 	command: string;
 	conditions: ConditionsO;
@@ -20,34 +25,44 @@ export interface CommandO {
 	payment: number;
 }
 
+// Define interface for command conditions
 export interface ConditionsO {
 	delay: number;
 	slots: number;
 }
 
+// Define interface for additional metadata
 interface Meta {
 	execute_offline: boolean;
 	more: boolean;
 	next_check: number;
 }
 
+// Define Tebex API response structure
 interface TebexResponse<T extends Player = Player> {
 	meta: Meta;
 	players: T[];
 }
 
+// Tebex class for managing Tebex commands and players
 class Tebex<T extends Player = Player> {
-	protected _tebexSecret: string = 'your key here';
-	protected _baseURL: string = 'https://plugin.tebex.io';
-	protected duePlayers: Map<string, T>;
-	protected offlineCommands = false;
-	// set this to true to log the Tebex queue
-	protected shouldLog = false;
-	protected onlinePlayers: Map<string, IPlayer>;
-	protected logger: Logger;
-	protected serenity: Serenity;
-	private intervalId: NodeJS.Timeout | null = null;
+	protected _tebexSecret: string = 'your key here'; // Tebex secret key
+	protected _baseURL: string = 'https://plugin.tebex.io'; // Tebex API base URL
+	protected duePlayers: Map<string, T>; // Map of players with due commands
+	protected offlineCommands = false; // Flag indicating whether offline commands should be executed
+	protected shouldLog = false; // Flag indicating whether to log Tebex queue activity
+	protected onlinePlayers: Map<string, IPlayer>; // Map of online players
+	protected logger: Logger; // Logger instance
+	protected serenity: Serenity; // Serenity instance
+	private intervalId: NodeJS.Timeout | null = null; // Interval ID for periodic updates
 
+	/**
+	 * Constructs a new Tebex instance.
+	 *
+	 * @param logger The logger instance to use for logging messages.
+	 * @param serenity The Serenity instance for accessing game data.
+	 * @param tebexSecret The Tebex secret key (optional).
+	 */
 	public constructor(logger: Logger, serenity: Serenity, tebexSecret?: string) {
 		this._tebexSecret = tebexSecret ? tebexSecret : this._tebexSecret;
 		this.logger = logger;
@@ -56,14 +71,15 @@ class Tebex<T extends Player = Player> {
 		this.onlinePlayers = new Map<string, IPlayer>();
 	}
 
+	/**
+	 * Starts the Tebex manager.
+	 */
 	public start(): void {
-		// add a logger message to indicate that the Tebex manager has started with green color
 		this.logger.log(chalk.green('Tebex manager has started!'));
 		let counter = 0;
 		this.intervalId = setInterval(async () => {
 			this.updateOnlinePlayers();
 			counter++;
-
 			if (counter % 5 === 0) {
 				await this.checkQueue();
 				await this.__sweepInterval();
@@ -71,8 +87,10 @@ class Tebex<T extends Player = Player> {
 		}, 1_000);
 	}
 
+	/**
+	 * Stops the Tebex manager.
+	 */
 	public stop(): void {
-		// add a logger message to indicate that the Tebex manager has stopped with red color
 		this.logger.log(chalk.red('Tebex manager has stopped!'));
 		if (this.intervalId) {
 			clearInterval(this.intervalId);
@@ -80,6 +98,9 @@ class Tebex<T extends Player = Player> {
 		}
 	}
 
+	/**
+	 * Updates the list of online players.
+	 */
 	protected updateOnlinePlayers(): void {
 		this.onlinePlayers.clear();
 		for (const [, world] of this.serenity.worlds) {
@@ -89,6 +110,9 @@ class Tebex<T extends Player = Player> {
 		}
 	}
 
+	/**
+	 * Checks the Tebex queue for pending commands.
+	 */
 	public async checkQueue(): Promise<void> {
 		try {
 			const response = await fetch(`${this._baseURL}/queue`, {
@@ -124,6 +148,11 @@ class Tebex<T extends Player = Player> {
 		}
 	}
 
+	/**
+	 * Executes commands for due players.
+	 *
+	 * @private
+	 */
 	private async __sweepInterval(): Promise<void> {
 		const duePlayers = Array.from(this.duePlayers.values());
 		const onlinePlayers = Array.from(this.onlinePlayers.values());
@@ -132,6 +161,14 @@ class Tebex<T extends Player = Player> {
 		await this.markAsComplete(completedCommands);
 	}
 
+	/**
+	 * Executes commands for the specified players.
+	 *
+	 * @param duePlayers The list of players with due commands.
+	 * @param onlinePlayers The list of online players.
+	 * @returns A list of completed commands for each player.
+	 * @private
+	 */
 	private async executeCommands(
 		duePlayers: T[],
 		onlinePlayers: IPlayer[],
@@ -149,6 +186,14 @@ class Tebex<T extends Player = Player> {
 		return results;
 	}
 
+	/**
+	 * Executes commands for the specified player.
+	 *
+	 * @param duePlayer The player with due commands.
+	 * @param onlinePlayer The corresponding online player.
+	 * @returns The completed command IDs for the player.
+	 * @private
+	 */
 	private async executePlayerCommands(duePlayer: T, onlinePlayer: IPlayer): Promise<{ completedCommands: number[] }> {
 		const { commands } = await this._getCommands<TebexDueOnlineCommands<CommandO>>(duePlayer.id);
 		const completedCommands: number[] = [];
@@ -164,7 +209,7 @@ class Tebex<T extends Player = Player> {
 				continue;
 			}
 
-			// execute the command when we implement the command execution
+			// Execute the command when implementation is added
 
 			completedCommands.push(command.id);
 		}
@@ -175,6 +220,12 @@ class Tebex<T extends Player = Player> {
 		return { completedCommands };
 	}
 
+	/**
+	 * Marks completed commands as processed.
+	 *
+	 * @param results The results of executed commands.
+	 * @private
+	 */
 	private async markAsComplete(results: { commandIds: number[]; player: IPlayer }[]): Promise<void> {
 		const commandIds = results.flatMap((result) => result.commandIds);
 
@@ -190,6 +241,12 @@ class Tebex<T extends Player = Player> {
 		}
 	}
 
+	/**
+	 * Marks specified commands as complete in the Tebex queue.
+	 *
+	 * @param ids The IDs of commands to mark as complete.
+	 * @private
+	 */
 	protected async _markAsComplete(ids: number[]): Promise<void> {
 		const response = await fetch(`${this._baseURL}/queue`, {
 			method: 'DELETE',
@@ -201,6 +258,13 @@ class Tebex<T extends Player = Player> {
 		});
 	}
 
+	/**
+	 * Fetches commands for the specified transaction.
+	 *
+	 * @param transactionId The ID of the transaction.
+	 * @returns The commands associated with the transaction.
+	 * @private
+	 */
 	protected async _getCommands<T extends TebexDueOnlineCommands>(transactionId: number): Promise<T> {
 		try {
 			const response = await fetch(`${this._baseURL}/queue/onlineCommands`, {
